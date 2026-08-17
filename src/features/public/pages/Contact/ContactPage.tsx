@@ -5,11 +5,37 @@ import * as z from "zod";
 import { publicService } from "../../services/publicService";
 import { Mail, Phone, MapPin, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 
+interface CountryCodeOption {
+  code: string;
+  name: string;
+  flag: string;
+  digitsMin: number;
+  digitsMax: number;
+  placeholder: string;
+}
+
+const COUNTRY_CODES: CountryCodeOption[] = [
+  { code: "+1", name: "United States / Canada", flag: "🇺🇸", digitsMin: 10, digitsMax: 10, placeholder: "555 123 4567" },
+  { code: "+91", name: "India", flag: "🇮🇳", digitsMin: 10, digitsMax: 10, placeholder: "98765 43210" },
+  { code: "+44", name: "United Kingdom", flag: "🇬🇧", digitsMin: 10, digitsMax: 11, placeholder: "7911 123456" },
+  { code: "+61", name: "Australia", flag: "🇦🇺", digitsMin: 9, digitsMax: 9, placeholder: "412 345 678" },
+  { code: "+971", name: "UAE", flag: "🇦🇪", digitsMin: 9, digitsMax: 9, placeholder: "50 123 4567" },
+  { code: "+65", name: "Singapore", flag: "🇸🇬", digitsMin: 8, digitsMax: 8, placeholder: "8123 4567" },
+  { code: "+49", name: "Germany", flag: "🇩🇪", digitsMin: 10, digitsMax: 11, placeholder: "151 12345678" },
+  { code: "+33", name: "France", flag: "🇫🇷", digitsMin: 9, digitsMax: 9, placeholder: "6 12 34 56 78" },
+  { code: "+81", name: "Japan", flag: "🇯🇵", digitsMin: 10, digitsMax: 10, placeholder: "90 1234 5678" },
+  { code: "+41", name: "Switzerland", flag: "🇨🇭", digitsMin: 9, digitsMax: 9, placeholder: "78 123 45 67" },
+  { code: "+966", name: "Saudi Arabia", flag: "🇸🇦", digitsMin: 9, digitsMax: 9, placeholder: "50 123 4567" },
+  { code: "+86", name: "China", flag: "🇨🇳", digitsMin: 11, digitsMax: 11, placeholder: "138 1234 5678" },
+  { code: "+353", name: "Ireland", flag: "🇮🇪", digitsMin: 9, digitsMax: 9, placeholder: "87 123 4567" },
+  { code: "+31", name: "Netherlands", flag: "🇳🇱", digitsMin: 9, digitsMax: 9, placeholder: "6 12345678" },
+  { code: "+other", name: "Other (International)", flag: "🌐", digitsMin: 7, digitsMax: 15, placeholder: "Enter complete phone number" },
+];
+
 const contactSchema = z.object({
-  name: z.string().min(2, "Name is required"),
-  email: z.string().email("Valid email is required"),
-  phone: z.string().min(5, "Phone number is required"),
-  subject: z.string().min(5, "Subject is required"),
+  name: z.string().min(2, "Full name is required"),
+  email: z.string().email("Valid email address is required"),
+  subject: z.string().min(3, "Subject is required"),
   message: z.string().min(10, "Message must be at least 10 characters"),
 });
 
@@ -20,16 +46,100 @@ export const ContactPage: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<ContactFormValues>({
+  // Country Code & Phone Number State
+  const [selectedCountryCode, setSelectedCountryCode] = useState<string>("+91");
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
+  const [phoneError, setPhoneError] = useState<string>("");
+
+  const currentCountry = COUNTRY_CODES.find((c) => c.code === selectedCountryCode) || COUNTRY_CODES[0];
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<ContactFormValues>({
     resolver: zodResolver(contactSchema)
   });
 
+  const validatePhoneNumber = (phone: string, countryCode: string): string => {
+    const rawDigits = phone.replace(/\D/g, "");
+    const country = COUNTRY_CODES.find((c) => c.code === countryCode) || COUNTRY_CODES[0];
+
+    if (!rawDigits) {
+      return "Phone number is required";
+    }
+
+    if (country.code === "+other") {
+      if (rawDigits.length < 7 || rawDigits.length > 15) {
+        return "Please enter a valid international phone number (7 to 15 digits)";
+      }
+      return "";
+    }
+
+    if (country.digitsMin === country.digitsMax) {
+      if (rawDigits.length !== country.digitsMin) {
+        return `${country.name} phone number must be exactly ${country.digitsMin} digits (${rawDigits.length}/${country.digitsMin})`;
+      }
+    } else {
+      if (rawDigits.length < country.digitsMin || rawDigits.length > country.digitsMax) {
+        return `${country.name} phone number must be between ${country.digitsMin} and ${country.digitsMax} digits (${rawDigits.length} entered)`;
+      }
+    }
+
+    return "";
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "");
+    const country = COUNTRY_CODES.find((c) => c.code === selectedCountryCode) || COUNTRY_CODES[0];
+    
+    // Hard restrict: User cannot type more than the allowed digits
+    const clampedDigits = raw.slice(0, country.digitsMax);
+    setPhoneNumber(clampedDigits);
+
+    if (clampedDigits.length > 0) {
+      setPhoneError(validatePhoneNumber(clampedDigits, selectedCountryCode));
+    } else {
+      setPhoneError("");
+    }
+  };
+
+  const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCode = e.target.value;
+    setSelectedCountryCode(newCode);
+    const country = COUNTRY_CODES.find((c) => c.code === newCode) || COUNTRY_CODES[0];
+
+    const raw = phoneNumber.replace(/\D/g, "");
+    const clampedDigits = raw.slice(0, country.digitsMax);
+    setPhoneNumber(clampedDigits);
+
+    if (clampedDigits.length > 0) {
+      setPhoneError(validatePhoneNumber(clampedDigits, newCode));
+    } else {
+      setPhoneError("");
+    }
+  };
+
   const onSubmit = async (data: ContactFormValues) => {
+    const pError = validatePhoneNumber(phoneNumber, selectedCountryCode);
+    if (pError) {
+      setPhoneError(pError);
+      return;
+    }
+
+    setPhoneError("");
     setIsSubmitting(true);
     setSubmitError(null);
+
+    const rawDigits = phoneNumber.replace(/\D/g, "");
+    const formattedPhone = selectedCountryCode === "+other"
+      ? phoneNumber.trim()
+      : `${selectedCountryCode} ${rawDigits}`;
+
     try {
-      await publicService.submitContactForm(data);
+      await publicService.submitContactForm({
+        ...data,
+        phone: formattedPhone,
+      });
       setSuccess(true);
+      reset();
+      setPhoneNumber("");
     } catch (err: any) {
       setSubmitError(err.message || "Failed to send message. Please try again.");
     } finally {
@@ -38,72 +148,84 @@ export const ContactPage: React.FC = () => {
   };
 
   return (
-    <div className="bg-background pt-24 pb-24">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
-        <div className="grid md:grid-cols-5 gap-12 lg:gap-24">
+    <div className="bg-background pt-32 sm:pt-36 pb-24">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+        <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-start">
           
           {/* Left Column - Info */}
-          <div className="md:col-span-2">
-            <p className="text-primary font-mono text-sm tracking-widest mb-6">CONTACT US</p>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tighter leading-tight mb-8">
-              Start the <span className="text-muted-foreground">conversation.</span>
+          <div className="lg:col-span-5">
+            <p className="text-primary font-mono text-sm tracking-widest mb-4">CONTACT US</p>
+            <h1 
+              style={{ 
+                fontSize: "clamp(2.1rem, 3.5vw, 2.85rem)", 
+                lineHeight: "1.18", 
+                fontWeight: 700, 
+                letterSpacing: "-0.02em", 
+                margin: "0.5rem 0 1.25rem",
+                color: "#f8fafc",
+                maxWidth: "100%" 
+              }}
+            >
+              Start the <span style={{ color: "#94a3b8" }}>conversation.</span>
             </h1>
-            <p className="text-lg text-muted-foreground leading-relaxed mb-12">
+            <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-10">
               Whether you're looking to transform your enterprise or explore our capabilities, our team is ready to help.
             </p>
 
-            <div className="space-y-8">
-              <div className="flex gap-4">
-                <div className="shrink-0 mt-1"><MapPin className="h-6 w-6 text-primary" /></div>
+            <div className="space-y-6">
+              <div className="flex gap-4 p-4 rounded-lg bg-card/40 border border-border/40">
+                <div className="shrink-0 mt-0.5"><MapPin className="h-5 w-5 text-primary" /></div>
                 <div>
-                  <h3 className="font-semibold mb-1">Global Headquarters</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    100 Innovation Way<br />
-                    Suite 400<br />
+                  <h3 className="font-semibold text-sm mb-1">Global Headquarters</h3>
+                  <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
+                    100 Innovation Way, Suite 400<br />
                     San Francisco, CA 94105
                   </p>
                 </div>
               </div>
 
-              <div className="flex gap-4">
-                <div className="shrink-0 mt-1"><Mail className="h-6 w-6 text-primary" /></div>
+              <div className="flex gap-4 p-4 rounded-lg bg-card/40 border border-border/40">
+                <div className="shrink-0 mt-0.5"><Mail className="h-5 w-5 text-primary" /></div>
                 <div>
-                  <h3 className="font-semibold mb-1">Email</h3>
-                  <p className="text-muted-foreground text-sm">hello@aurexion.io</p>
-                  <p className="text-muted-foreground text-sm">support@aurexion.io</p>
+                  <h3 className="font-semibold text-sm mb-1">Email</h3>
+                  <p className="text-muted-foreground text-xs sm:text-sm">hello@aurexion.io</p>
+                  <p className="text-muted-foreground text-xs sm:text-sm">support@aurexion.io</p>
                 </div>
               </div>
 
-              <div className="flex gap-4">
-                <div className="shrink-0 mt-1"><Phone className="h-6 w-6 text-primary" /></div>
+              <div className="flex gap-4 p-4 rounded-lg bg-card/40 border border-border/40">
+                <div className="shrink-0 mt-0.5"><Phone className="h-5 w-5 text-primary" /></div>
                 <div>
-                  <h3 className="font-semibold mb-1">Phone</h3>
-                  <p className="text-muted-foreground text-sm">+1 (555) 123-4567</p>
+                  <h3 className="font-semibold text-sm mb-1">Phone</h3>
+                  <p className="text-muted-foreground text-xs sm:text-sm">+1 (555) 123-4567</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Right Column - Form */}
-          <div className="md:col-span-3">
-            <div className="bg-card border border-border/40 rounded-lg p-8 md:p-10">
+          <div className="lg:col-span-7">
+            <div className="bg-card border border-border/40 rounded-lg p-6 sm:p-8 md:p-10 shadow-xl">
               {success ? (
                 <div className="py-12 flex flex-col items-center text-center">
                   <CheckCircle2 className="h-16 w-16 text-primary mb-6" />
                   <h3 className="text-2xl font-bold mb-4">Message Sent</h3>
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground max-w-md">
                     Thank you for reaching out. A member of our team will get back to you shortly.
                   </p>
                   <button 
                     onClick={() => setSuccess(false)} 
-                    className="mt-8 text-primary hover:underline text-sm font-medium"
+                    className="mt-8 inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
                     Send another message
                   </button>
                 </div>
               ) : (
                 <>
-                  <h2 className="text-2xl font-bold mb-6">Send a Message</h2>
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-bold mb-2">Send a Message</h2>
+                    <p className="text-sm text-muted-foreground">Fill out the details below and our team will get back to you within 24 hours.</p>
+                  </div>
                   
                   {submitError && (
                     <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded flex items-start gap-3">
@@ -115,58 +237,151 @@ export const ContactPage: React.FC = () => {
                   <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                     <div className="grid sm:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label htmlFor="name" className="text-sm font-medium text-muted-foreground">Full Name</label>
+                        <label htmlFor="name" className="text-sm font-medium">
+                          Full Name <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
                         <input 
                           id="name" 
                           {...register("name")} 
-                          className={`w-full p-3 rounded-md bg-background border ${errors.name ? 'border-destructive' : 'border-input'} focus:outline-none focus:ring-1 focus:ring-primary`} 
+                          placeholder="e.g. John Doe"
+                          className="w-full p-3 rounded-md bg-background focus:outline-none transition-colors"
+                          style={{
+                            border: errors.name ? "1px solid #ef4444" : "1px solid #1e293b",
+                            boxShadow: errors.name ? "0 0 0 1px rgba(239, 68, 68, 0.25)" : undefined,
+                          }}
                         />
-                        {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+                        {errors.name && (
+                          <p style={{ color: "#ef4444", fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "0.35rem", marginTop: "0.35rem", fontFamily: "IBM Plex Mono, monospace" }}>
+                            <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                            <span>{errors.name.message}</span>
+                          </p>
+                        )}
                       </div>
                       
                       <div className="space-y-2">
-                        <label htmlFor="email" className="text-sm font-medium text-muted-foreground">Work Email</label>
+                        <label htmlFor="email" className="text-sm font-medium">
+                          Work Email <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
                         <input 
                           id="email" 
                           type="email"
                           {...register("email")} 
-                          className={`w-full p-3 rounded-md bg-background border ${errors.email ? 'border-destructive' : 'border-input'} focus:outline-none focus:ring-1 focus:ring-primary`} 
+                          placeholder="john@company.com"
+                          className="w-full p-3 rounded-md bg-background focus:outline-none transition-colors"
+                          style={{
+                            border: errors.email ? "1px solid #ef4444" : "1px solid #1e293b",
+                            boxShadow: errors.email ? "0 0 0 1px rgba(239, 68, 68, 0.25)" : undefined,
+                          }}
                         />
-                        {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+                        {errors.email && (
+                          <p style={{ color: "#ef4444", fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "0.35rem", marginTop: "0.35rem", fontFamily: "IBM Plex Mono, monospace" }}>
+                            <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                            <span>{errors.email.message}</span>
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     <div className="grid sm:grid-cols-2 gap-6">
+                      {/* Phone with Country Code Selector */}
                       <div className="space-y-2">
-                        <label htmlFor="phone" className="text-sm font-medium text-muted-foreground">Phone</label>
-                        <input 
-                          id="phone" 
-                          {...register("phone")} 
-                          className={`w-full p-3 rounded-md bg-background border ${errors.phone ? 'border-destructive' : 'border-input'} focus:outline-none focus:ring-1 focus:ring-primary`} 
-                        />
-                        {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
+                        <label htmlFor="phone" className="text-sm font-medium">
+                          Phone Number <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
+                        <div className="flex gap-2">
+                          <select
+                            value={selectedCountryCode}
+                            onChange={handleCountryChange}
+                            className="p-3 rounded-md bg-background focus:outline-none transition-colors cursor-pointer text-xs sm:text-sm font-medium"
+                            style={{
+                              border: "1px solid #1e293b",
+                              minWidth: "125px",
+                              color: "#f8fafc",
+                              backgroundColor: "#050811",
+                            }}
+                          >
+                            {COUNTRY_CODES.map((c) => (
+                              <option key={c.code} value={c.code} style={{ backgroundColor: "#050811", color: "#f8fafc" }}>
+                                {c.flag} {c.code} ({c.name.split(" / ")[0].split(" ")[0]})
+                              </option>
+                            ))}
+                          </select>
+
+                          <input 
+                            id="phone" 
+                            type="tel"
+                            value={phoneNumber}
+                            maxLength={currentCountry.digitsMax}
+                            onChange={handlePhoneChange}
+                            className="w-full p-3 rounded-md bg-background focus:outline-none transition-colors font-mono text-sm"
+                            style={{
+                              border: phoneError ? "1px solid #ef4444" : "1px solid #1e293b",
+                              boxShadow: phoneError ? "0 0 0 1px rgba(239, 68, 68, 0.25)" : undefined,
+                            }} 
+                            placeholder={currentCountry.placeholder}
+                          />
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.35rem" }}>
+                          {phoneError ? (
+                            <p style={{ color: "#ef4444", fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "0.35rem", margin: 0, fontFamily: "IBM Plex Mono, monospace" }}>
+                              <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                              <span>{phoneError}</span>
+                            </p>
+                          ) : (
+                            <span />
+                          )}
+                          {phoneNumber.length > 0 && (
+                            <span style={{ fontSize: "0.75rem", color: phoneError ? "#ef4444" : "#64748b", fontFamily: "IBM Plex Mono, monospace", marginLeft: "auto" }}>
+                              {phoneNumber.length} / {currentCountry.digitsMax} digits
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
                       <div className="space-y-2">
-                        <label htmlFor="subject" className="text-sm font-medium text-muted-foreground">Subject</label>
+                        <label htmlFor="subject" className="text-sm font-medium">
+                          Subject <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
                         <input 
                           id="subject" 
                           {...register("subject")} 
-                          className={`w-full p-3 rounded-md bg-background border ${errors.subject ? 'border-destructive' : 'border-input'} focus:outline-none focus:ring-1 focus:ring-primary`} 
+                          placeholder="e.g. Project Consultation"
+                          className="w-full p-3 rounded-md bg-background focus:outline-none transition-colors"
+                          style={{
+                            border: errors.subject ? "1px solid #ef4444" : "1px solid #1e293b",
+                            boxShadow: errors.subject ? "0 0 0 1px rgba(239, 68, 68, 0.25)" : undefined,
+                          }}
                         />
-                        {errors.subject && <p className="text-xs text-destructive">{errors.subject.message}</p>}
+                        {errors.subject && (
+                          <p style={{ color: "#ef4444", fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "0.35rem", marginTop: "0.35rem", fontFamily: "IBM Plex Mono, monospace" }}>
+                            <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                            <span>{errors.subject.message}</span>
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <label htmlFor="message" className="text-sm font-medium text-muted-foreground">How can we help?</label>
+                      <label htmlFor="message" className="text-sm font-medium">
+                        How can we help? <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
                       <textarea 
                         id="message" 
                         rows={5}
                         {...register("message")} 
-                        className={`w-full p-3 rounded-md bg-background border ${errors.message ? 'border-destructive' : 'border-input'} focus:outline-none focus:ring-1 focus:ring-primary resize-none`} 
+                        placeholder="Tell us about your project requirements or inquiry..."
+                        className="w-full p-3 rounded-md bg-background focus:outline-none transition-colors resize-none"
+                        style={{
+                          border: errors.message ? "1px solid #ef4444" : "1px solid #1e293b",
+                          boxShadow: errors.message ? "0 0 0 1px rgba(239, 68, 68, 0.25)" : undefined,
+                        }}
                       />
-                      {errors.message && <p className="text-xs text-destructive">{errors.message.message}</p>}
+                      {errors.message && (
+                        <p style={{ color: "#ef4444", fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "0.35rem", marginTop: "0.35rem", fontFamily: "IBM Plex Mono, monospace" }}>
+                          <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                          <span>{errors.message.message}</span>
+                        </p>
+                      )}
                     </div>
 
                     <button 
