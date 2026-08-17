@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { useParams, useLocation } from "wouter";
+import { useParams, Redirect } from "wouter";
 import { blogPosts } from "../../../../data/blogPosts";
 import { ArticleHero } from "./components/Detail/ArticleHero";
 import { ReadingProgress } from "./components/Detail/ReadingProgress";
@@ -12,7 +12,6 @@ import { InsightsCTA } from "./components/Hub/InsightsCTA";
 
 export const ArticleDetailPage = () => {
   const params = useParams();
-  const [, setLocation] = useLocation();
   
   const article = blogPosts.find(p => p.slug === params.slug);
 
@@ -21,8 +20,7 @@ export const ArticleDetailPage = () => {
   }, [params.slug]);
 
   if (!article) {
-    setLocation("/not-found");
-    return null;
+    return <Redirect to="/not-found" />;
   }
 
   return (

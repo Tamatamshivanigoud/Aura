@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { useParams, useLocation } from "wouter";
+import { useParams, Redirect } from "wouter";
 import { servicesData } from "../../../../data/services";
 
 import { ServiceHero } from "./components/Detail/ServiceHero";
@@ -12,7 +12,6 @@ import { ServiceCTA } from "./components/Detail/ServiceCTA";
 
 export const ServiceDetailsPage: React.FC = () => {
   const params = useParams();
-  const [, setLocation] = useLocation();
   const slug = params.slug;
 
   const service = servicesData.find((s: any) => s.slug === slug);
@@ -22,9 +21,7 @@ export const ServiceDetailsPage: React.FC = () => {
   }, [slug]);
 
   if (!service) {
-    // Redirect to services hub if not found
-    setLocation("/services");
-    return null;
+    return <Redirect to="/services" />;
   }
 
   return (

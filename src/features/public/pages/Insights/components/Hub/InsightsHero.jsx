@@ -8,7 +8,7 @@ export const InsightsHero = () => {
       <div
         className="subpage-hero-art"
         style={{
-          backgroundImage: `url(https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=85)`,
+          backgroundImage: `url(/images/insights-hero.png)`,
         }}
       />
       <div className="subpage-hero-overlay" />

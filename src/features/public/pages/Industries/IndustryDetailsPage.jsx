@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { useParams, useLocation } from "wouter";
+import { useParams, Redirect } from "wouter";
 import { industriesData } from "../../../../data/industries";
 
 import { IndustryHero } from "./components/Detail/IndustryHero";
@@ -17,7 +17,6 @@ import { IndustryDetailCTA } from "./components/Detail/IndustryDetailCTA";
 
 export const IndustryDetailsPage = () => {
   const params = useParams();
-  const [, setLocation] = useLocation();
   const slug = params.slug;
 
   const industry = industriesData.find(ind => ind.slug === slug);
@@ -27,8 +26,7 @@ export const IndustryDetailsPage = () => {
   }, [slug]);
 
   if (!industry) {
-    setLocation("/industries");
-    return null;
+    return <Redirect to="/industries" />;
   }
 
   return (
