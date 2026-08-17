@@ -18,7 +18,9 @@ export const CrmRoutes: React.FC = () => {
         {/* Core CRM / Sales Executive Routes */}
         <Route path="/crm/dashboard" component={Dashboard} />
         <Route path="/crm/leads" component={Leads} />
+        <Route path="/crm/leads/" component={Leads} />
         <Route path="/crm/leads/:id" component={LeadDetail} />
+        <Route path="/crm/leads/:id/" component={LeadDetail} />
         <Route path="/crm/opportunities" component={Opportunities} />
         <Route path="/crm/follow-ups" component={FollowUps} />
         <Route path="/crm/activities" component={Activities} />
@@ -29,7 +31,9 @@ export const CrmRoutes: React.FC = () => {
         {/* /sales Aliases */}
         <Route path="/sales/dashboard" component={Dashboard} />
         <Route path="/sales/leads" component={Leads} />
+        <Route path="/sales/leads/" component={Leads} />
         <Route path="/sales/leads/:id" component={LeadDetail} />
+        <Route path="/sales/leads/:id/" component={LeadDetail} />
         <Route path="/sales/opportunities" component={Opportunities} />
         <Route path="/sales/follow-ups" component={FollowUps} />
         <Route path="/sales/activities" component={Activities} />

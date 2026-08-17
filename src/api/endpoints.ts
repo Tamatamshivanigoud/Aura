@@ -11,6 +11,7 @@ export const API_ENDPOINTS = {
   },
   CRM: {
     LEADS: "/leads/",
+    PUBLIC_LEADS: "/public/leads/",
     LEAD_FOLLOW_UPS: (leadId: number) => `/leads/${leadId}/follow-ups/`,
     LEAD_NOTES: (leadId: number) => `/leads/${leadId}/notes/`,
     LEAD_ASSIGN: (leadId: number) => `/leads/${leadId}/assign/`,

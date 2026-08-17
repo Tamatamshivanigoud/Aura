@@ -39,8 +39,8 @@ export const Leads: React.FC = () => {
     company: "",
     website: "",
     industry: "",
-    source: "WEBSITE",
-    priority: "MEDIUM",
+    source: "website",
+    priority: "medium",
     description: "",
   });
   const [createError, setCreateError] = useState<string | null>(null);
@@ -671,11 +671,11 @@ export const Leads: React.FC = () => {
                       borderRadius: "4px",
                     }}
                   >
-                    <option value="WEBSITE">Website</option>
-                    <option value="LINKEDIN">LinkedIn</option>
-                    <option value="REFERRAL">Referral</option>
-                    <option value="COLD_OUTREACH">Cold Outreach</option>
-                    <option value="CONFERENCE">Conference</option>
+                    <option value="website">Website</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="referral">Referral</option>
+                    <option value="cold_outreach">Cold Outreach</option>
+                    <option value="conference">Conference</option>
                   </select>
                 </div>
 
@@ -694,10 +694,10 @@ export const Leads: React.FC = () => {
                       borderRadius: "4px",
                     }}
                   >
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HIGH">High</option>
-                    <option value="URGENT">Urgent</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
                   </select>
                 </div>
 

@@ -3,6 +3,7 @@ import { useLeads } from "../../hooks/useLeads";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
+import { Textarea } from "../../../../components/ui/textarea";
 import {
   Table,
   TableHeader,
@@ -12,7 +13,19 @@ import {
   TableCell,
 } from "../../../../components/ui/table";
 import { Badge } from "../../../../components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from "../../../../components/ui/dialog";
+import { AlertCircle, CheckCircle, UserCheck, XCircle } from "lucide-react";
 import type { Lead } from "../../services/bdmService";
+import { bdmService } from "../../services/bdmService";
 
 const STATUS_COLORS: Record<string, string> = {
   new: "bg-blue-500/20 text-blue-400 border-blue-500/30",
@@ -39,7 +52,18 @@ export const RFP: React.FC = () => {
     search: search || undefined,
   });
 
-  const rfpLeads = leads.filter((lead) => lead.source?.toUpperCase() === "RFP");
+  const rfpLeads = leads.filter((lead) => lead.source === "rfp_form");
+
+  // Accept/Decline modals state
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [assignableUsers, setAssignableUsers] = useState<{ id: number; username: string; email: string; name: string; role: string }[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [declineReason, setDeclineReason] = useState("");
+  const [selectedAssignee, setSelectedAssignee] = useState<number | null>(null);
+  const [isAcceptOpen, setIsAcceptOpen] = useState(false);
+  const [isDeclineOpen, setIsDeclineOpen] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +89,77 @@ export const RFP: React.FC = () => {
       {priority.charAt(0).toUpperCase() + priority.slice(1)}
     </Badge>
   );
+
+  // Open Accept modal
+  const handleAcceptClick = async (lead: Lead) => {
+    setSelectedLead(lead);
+    setSelectedAssignee(null);
+    setActionError(null);
+    setIsAcceptOpen(true);
+    setIsLoadingUsers(true);
+    try {
+      const users = await bdmService.getAssignableUsers();
+      setAssignableUsers(users);
+    } catch {
+      setAssignableUsers([]);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  // Open Decline modal
+  const handleDeclineClick = (lead: Lead) => {
+    setSelectedLead(lead);
+    setDeclineReason("");
+    setActionError(null);
+    setIsDeclineOpen(true);
+  };
+
+  // Submit Accept (assign to sales)
+  const handleAcceptSubmit = async () => {
+    if (!selectedLead || !selectedAssignee) return;
+    setIsActionLoading(true);
+    setActionError(null);
+    try {
+      await bdmService.assignLead(selectedLead.id, selectedAssignee);
+      refetch();
+      setSelectedLead(null);
+      setSelectedAssignee(null);
+    } catch (err: any) {
+      setActionError(err.message || "Failed to assign lead");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  // Submit Decline (mark as lost)
+  const handleDeclineSubmit = async () => {
+    if (!selectedLead || !declineReason.trim()) {
+      setActionError("Reason is required to decline");
+      return;
+    }
+    setIsActionLoading(true);
+    setActionError(null);
+    try {
+      await bdmService.markLeadLost(selectedLead.id, declineReason);
+      refetch();
+      setSelectedLead(null);
+      setDeclineReason("");
+    } catch (err: any) {
+      setActionError(err.message || "Failed to decline lead");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const closeModals = () => {
+    setSelectedLead(null);
+    setSelectedAssignee(null);
+    setDeclineReason("");
+    setActionError(null);
+    setIsAcceptOpen(false);
+    setIsDeclineOpen(false);
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
@@ -204,6 +299,38 @@ export const RFP: React.FC = () => {
                         {lead.next_follow_up_at ? formatDate(lead.next_follow_up_at) : "—"}
                       </TableCell>
                       <TableCell>{formatDate(lead.created_at)}</TableCell>
+                      <TableCell>
+                        {lead.status === "new" && !lead.assigned_to ? (
+                          <div style={{ display: "flex", gap: "0.5rem" }}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAcceptClick(lead)}
+                              disabled={isLoadingUsers || isActionLoading}
+                              className="text-green-400 border-green-400 hover:bg-green-400/10"
+                            >
+                              <UserCheck className="h-4 w-4 mr-1" /> Accept
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeclineClick(lead)}
+                              disabled={isActionLoading}
+                              className="text-red-400 border-red-400 hover:bg-red-400/10"
+                            >
+                              <XCircle className="h-4 w-4 mr-1" /> Decline
+                            </Button>
+                          </div>
+                        ) : lead.assigned_to ? (
+                          <span style={{ color: "#60a5fa", fontSize: "0.8rem" }}>
+                            Assigned to {lead.assigned_to_name}
+                          </span>
+                        ) : lead.status === "lost" ? (
+                          <span style={{ color: "#ef4444", fontSize: "0.8rem" }}>Declined</span>
+                        ) : (
+                          <span style={{ color: "#fbbf24", fontSize: "0.8rem" }}>{lead.status.replace(/_/g, " ")}</span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -226,6 +353,96 @@ export const RFP: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Accept RFP Modal - Assign to Sales Executive */}
+      <Dialog open={isAcceptOpen} onOpenChange={(open) => !open && closeModals()}>
+        <DialogContent style={{ maxWidth: "480px" }}>
+          <DialogHeader>
+            <DialogTitle>Accept RFP</DialogTitle>
+            <DialogDescription>
+              Assign this RFP to a sales executive to begin proposal development.
+            </DialogDescription>
+          </DialogHeader>
+          {actionError && (
+            <div style={{ marginBottom: "1rem", padding: "0.75rem", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "0.5rem", color: "#ef4444", fontSize: "0.875rem" }}>
+              <AlertCircle className="h-4 w-4 inline mr-1" /> {actionError}
+            </div>
+          )}
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.5rem", color: "#cbd5e1" }}>
+              Assign to Sales Executive
+            </label>
+            {isLoadingUsers ? (
+              <div style={{ padding: "1rem", textAlign: "center", color: "#64748b" }}>Loading sales executives...</div>
+            ) : assignableUsers.length === 0 ? (
+              <div style={{ padding: "1rem", textAlign: "center", color: "#ef4444" }}>
+                No sales executives available. Please create sales executive users first.
+              </div>
+            ) : (
+              <Select value={selectedAssignee ? String(selectedAssignee) : ""} onValueChange={(val) => setSelectedAssignee(Number(val))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a sales executive" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assignableUsers.map((user) => (
+                    <SelectItem key={user.id} value={String(user.id)}>
+                      {user.name} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeModals} disabled={isActionLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleAcceptSubmit} disabled={isActionLoading || !selectedAssignee}>
+              {isActionLoading ? "Assigning..." : "Assign & Accept"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Decline RFP Modal - Mark as Lost */}
+      <Dialog open={isDeclineOpen} onOpenChange={(open) => !open && closeModals()}>
+        <DialogContent style={{ maxWidth: "480px" }}>
+          <DialogHeader>
+            <DialogTitle>Decline RFP</DialogTitle>
+            <DialogDescription>
+              Mark this RFP as declined. A reason is required.
+            </DialogDescription>
+          </DialogHeader>
+          {actionError && (
+            <div style={{ marginBottom: "1rem", padding: "0.75rem", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "0.5rem", color: "#ef4444", fontSize: "0.875rem" }}>
+              <AlertCircle className="h-4 w-4 inline mr-1" /> {actionError}
+            </div>
+          )}
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.5rem", color: "#cbd5e1" }}>
+              Decline Reason *
+            </label>
+            <Textarea
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+              placeholder="Enter reason for declining this RFP..."
+              rows={4}
+              disabled={isActionLoading}
+            />
+            <p style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.5rem" }}>
+              This reason will be recorded and the lead will be marked as Lost.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeModals} disabled={isActionLoading}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeclineSubmit} disabled={isActionLoading || !declineReason.trim()}>
+              {isActionLoading ? "Declining..." : "Confirm Decline"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

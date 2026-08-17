@@ -1,6 +1,6 @@
 import axiosClient from "../../../api/axiosClient";
 import { API_ENDPOINTS } from "../../../api/endpoints";
-import { BlogPost, CaseStudy, Industry, Job, JobApplication, Service, ContactFormData, QuoteFormData } from "../types/website.types";
+import { BlogPost, CaseStudy, Industry, Job, JobApplication, Service, ContactFormData, QuoteFormData, PublicLeadData } from "../types/website.types";
 
 export const publicService = {
   // CMS endpoints
@@ -60,29 +60,52 @@ export const publicService = {
     });
   },
 
-  // These are placeholders for missing APIs as reported in the plan
+// Public form submissions - now using real API
   submitContactForm: async (data: ContactFormData): Promise<void> => {
-    // throw new Error("Contact API is missing");
-    console.warn("Mock contact form submission:", data);
-    return Promise.resolve();
+    await axiosClient.post(API_ENDPOINTS.CRM.PUBLIC_LEADS, {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      subject: data.subject,
+      description: data.message,
+      source: "contact_form",
+    });
   },
 
   requestQuote: async (data: QuoteFormData): Promise<void> => {
-    // throw new Error("Request Quote API is missing");
-    console.warn("Mock quote request submission:", data);
-    return Promise.resolve();
+    await axiosClient.post(API_ENDPOINTS.CRM.PUBLIC_LEADS, {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      company: data.company,
+      industry: data.service,
+      description: data.requirements,
+      source: "request_quote",
+    });
   },
   
   submitRfp: async (data: any): Promise<void> => {
-    // throw new Error("RFP API is missing");
-    console.warn("Mock RFP submission:", data);
-    return Promise.resolve();
+    await axiosClient.post(API_ENDPOINTS.CRM.PUBLIC_LEADS, {
+      name: data.full_name,
+      email: data.work_email,
+      phone: data.phone,
+      company: data.company_name,
+      description: data.project_description,
+      industry: data.project_type,
+      source: "rfp_form",
+    });
   },
   
   calculateEstimate: async (data: any): Promise<any> => {
-    // throw new Error("Estimator API is missing");
-    console.warn("Mock estimate calculation:", data);
-    return Promise.resolve({ estimatedCost: "$10,000" });
+    await axiosClient.post(API_ENDPOINTS.CRM.PUBLIC_LEADS, {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      company: data.company,
+      description: data.requirements,
+      source: "estimator",
+    });
+    return Promise.resolve({ estimatedCost: data.estimatedCost || "$10,000" });
   }
 };
 

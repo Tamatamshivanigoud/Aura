@@ -1,6 +1,7 @@
 import React from "react";
 import { useBdmDashboard } from "../../hooks/useBdmDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
+import { Badge } from "../../../../components/ui/badge";
 import {
   ChartContainer,
   ChartTooltip,
@@ -30,6 +31,22 @@ const STATUS_COLORS: Record<string, string> = {
   negotiation: "#f472b6",
   won: "#22c55e",
   lost: "#ef4444",
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  rfp_form: "RFP Form",
+  contact_form: "Contact Form",
+  request_quote: "Request Quote",
+  estimator: "Estimator",
+  website_form: "Website Form",
+};
+
+const SOURCE_COLORS: Record<string, string> = {
+  rfp_form: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  contact_form: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  request_quote: "bg-green-500/20 text-green-400 border-green-500/30",
+  estimator: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  website_form: "bg-gray-500/20 text-gray-400 border-gray-500/30",
 };
 
 interface MetricCardProps {
@@ -290,6 +307,74 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
+
+      {/* Recent Form Submissions (RFP, Contact, Quote, Estimator) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Form Submissions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data?.recent_form_submissions?.length ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              {data?.recent_form_submissions?.map((submission) => (
+                <div
+                  key={submission.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: "1rem",
+                    padding: "1rem",
+                    background: "rgba(99, 245, 232, 0.03)",
+                    border: "1px solid rgba(99, 245, 232, 0.1)",
+                    borderRadius: "0.5rem",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: "250px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
+                      <span style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "#63f5e8" }}>
+                        {submission.reference_id}
+                      </span>
+                      <Badge className={SOURCE_COLORS[submission.source] || "bg-gray-500/20 text-gray-400"}>
+                        {SOURCE_LABELS[submission.source] || submission.source_display}
+                      </Badge>
+                    </div>
+                    <p style={{ fontWeight: 500, color: "#f8fafc", margin: "0 0 0.25rem 0" }}>
+                      {submission.name}
+                    </p>
+                    <p style={{ fontSize: "0.875rem", color: "#94a3b8", margin: "0 0 0.25rem 0" }}>
+                      {submission.company || "—"}
+                    </p>
+                    <p style={{ fontSize: "0.875rem", color: "#64748b", margin: 0 }}>
+                      {submission.email}
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem", whiteSpace: "nowrap" }}>
+                    <Badge className={STATUS_COLORS[submission.status] || "bg-gray-500/20 text-gray-400"}>
+                      {STATUS_LABELS[submission.status] || submission.status}
+                    </Badge>
+                    <p style={{ fontSize: "0.75rem", color: "#64748b", margin: 0, fontFamily: "IBM Plex Mono, monospace" }}>
+                      {new Date(submission.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: "#64748b", textAlign: "center", padding: "2rem" }}>
+              No recent form submissions
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <style>{`
         @keyframes shimmer {

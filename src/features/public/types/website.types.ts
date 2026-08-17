@@ -91,3 +91,15 @@ export interface QuoteFormData {
   budget?: string;
   timeline?: string;
 }
+
+export interface PublicLeadData {
+  name: string;
+  email: string;
+  phone: string;
+  company?: string;
+  website?: string;
+  industry?: string;
+  source: string;
+  description: string;
+  priority?: string;
+}

@@ -14,6 +14,21 @@ export interface DashboardData {
   conversion_rate: number;
   pipeline_summary: Array<{ status: string; total: number }>;
   recent_activities: Array<{ id: number; action: string; repr: string; actor: string | null; timestamp: string }>;
+  recent_form_submissions: FormSubmission[];
+}
+
+export interface FormSubmission {
+  id: number;
+  reference_id: string;
+  name: string;
+  email: string;
+  company: string;
+  source: string;
+  source_display: string;
+  industry: string;
+  description: string;
+  created_at: string;
+  status: string;
 }
 
 export interface Lead {
@@ -89,6 +104,43 @@ export const bdmService = {
 
   getLeadFollowUps: async (leadId: number): Promise<LeadFollowUp[]> => {
     return axiosClient.get<any, any>(API_ENDPOINTS.CRM.LEAD_FOLLOW_UPS(leadId));
+  },
+
+  /**
+   * Assign lead to a sales executive (Accept RFP)
+   */
+  assignLead: async (leadId: number, assignedTo: number): Promise<Lead> => {
+    const data = await axiosClient.post<any, any>(API_ENDPOINTS.CRM.LEAD_ASSIGN(leadId), { assigned_to: assignedTo });
+    return data;
+  },
+
+  /**
+   * Mark lead as Lost (Decline RFP)
+   */
+  markLeadLost: async (leadId: number, reason: string): Promise<Lead> => {
+    const data = await axiosClient.post<any, any>(API_ENDPOINTS.CRM.LEAD_LOST(leadId), { reason });
+    return data;
+  },
+
+  /**
+   * Get assignable sales executives
+   */
+  getAssignableUsers: async (): Promise<{ id: number; username: string; email: string; name: string; role: string }[]> => {
+    try {
+      const data = await axiosClient.get<any, any>(API_ENDPOINTS.ADMIN.USERS);
+      const list = Array.isArray(data) ? data : (data.results || []);
+      return list
+        .filter((u: any) => u.profile?.role === 'sales_executive' || u.role === 'sales_executive')
+        .map((u: any) => ({
+          id: u.id,
+          username: u.username,
+          email: u.email,
+          name: u.first_name ? `${u.first_name} ${u.last_name || ""}`.trim() : u.username,
+          role: u.profile?.role || u.role,
+        }));
+    } catch {
+      return [];
+    }
   },
 
   // Mock data for features not yet implemented in backend
